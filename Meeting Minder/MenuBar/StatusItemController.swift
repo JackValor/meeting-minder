@@ -229,7 +229,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
         let time = Calendar.current.isDateInToday(event.start)
             ? formatter.string(from: event.start)
-            : (Calendar.current.isDateInTomorrow(event.start) ? "Tom " + formatter.string(from: event.start) : shortDate(event.start))
+            : shortDate(event.start)
 
         let attributed = NSMutableAttributedString(
             string: time.paddedForMenu,
