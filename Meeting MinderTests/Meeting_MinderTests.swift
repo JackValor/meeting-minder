@@ -197,13 +197,24 @@ struct ReminderPolicyTests {
     func earlyJoinRearms() {
         #expect(ReminderPolicy.shouldRemindAfterEarlyJoin(start: now.addingTimeInterval(5 * 60), now: now))
         #expect(ReminderPolicy.shouldRemindAfterEarlyJoin(start: now.addingTimeInterval(60), now: now))
+        #expect(ReminderPolicy.shouldRemindAfterEarlyJoin(start: now.addingTimeInterval(30), now: now))
+        #expect(ReminderPolicy.shouldRemindAfterEarlyJoin(start: now.addingTimeInterval(11), now: now))
+    }
+
+    @Test("Joining from the '1 minute before' reminder re-arms for meeting time")
+    func joinFromOneMinuteReminderRearms() {
+        let start = now.addingTimeInterval(5 * 60)
+        let remindAt = ReminderPolicy.remindDate(forStart: start, option: .oneMinuteBefore)
+        // The scheduler ticks once a second, so the alert lands just inside the minute.
+        let shownAt = remindAt.addingTimeInterval(1)
+        #expect(ReminderPolicy.shouldRemindAfterEarlyJoin(start: start, now: shownAt))
     }
 
     @Test("Joining on time is treated as a dismissal, not a deferral")
     func onTimeJoinDoesNotRearm() {
         // A nudge seconds after a deliberate join would be noise, not a save.
-        #expect(!ReminderPolicy.shouldRemindAfterEarlyJoin(start: now.addingTimeInterval(59), now: now))
         #expect(!ReminderPolicy.shouldRemindAfterEarlyJoin(start: now.addingTimeInterval(10), now: now))
+        #expect(!ReminderPolicy.shouldRemindAfterEarlyJoin(start: now.addingTimeInterval(5), now: now))
         #expect(!ReminderPolicy.shouldRemindAfterEarlyJoin(start: now, now: now))
         #expect(!ReminderPolicy.shouldRemindAfterEarlyJoin(start: now.addingTimeInterval(-300), now: now))
     }

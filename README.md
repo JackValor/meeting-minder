@@ -91,10 +91,11 @@ it at `start`. Each button withdraws itself once the meeting is too close for th
 land in the future, so the one-minute option disappears first and you are never offered a
 reminder that would fire immediately.
 
-**Joining early re-arms rather than dismisses.** If you press **Join** more than a minute before
+**Joining early re-arms rather than dismisses.** If you press **Join** more than 10 seconds before
 the start, the alert comes back at meeting time — joining early then switching tabs is the
-easiest way to miss a meeting you had every intention of attending. The alert says so before you
-press it. Joining inside the last minute counts as joining on time and simply dismisses.
+easiest way to miss a meeting you had every intention of attending. That includes joining from
+the *1 minute before* reminder to check your audio and video. The alert says so before you press
+it. Joining inside the last 10 seconds counts as joining on time and simply dismisses.
 
 Moving a meeting in Google Calendar resets its state, so a rescheduled meeting warns you again.
 
