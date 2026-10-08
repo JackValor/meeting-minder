@@ -62,6 +62,11 @@ xcodebuild -project "Meeting Minder.xcodeproj" -scheme "Meeting Minder" \
 
 Or just open the project in Xcode and hit ⌘R.
 
+Every push to `main` also runs the tests, builds a Release app and publishes it as a GitHub
+release tagged `v<version>.<run number>` (see `.github/workflows/release.yml`). Those builds are
+ad-hoc signed and not notarized, so the first launch needs **Open Anyway** in **System Settings →
+Privacy & Security**. Put `[skip ci]` in a commit message to push without cutting a release.
+
 To keep it around, copy the built `Meeting Minder.app` into `/Applications`, then turn on
 **Launch at Login** from the menu. (`SMAppService` is happiest with an app that lives in
 `/Applications` rather than in DerivedData.)

@@ -1,0 +1,119 @@
+# Builds, tests and publishes a GitHub release for every push to main.
+#
+# Releases are tagged v<MARKETING_VERSION>.<run number> (e.g. v1.0.7), and the run number
+# becomes the app's build number. The app is ad-hoc signed and not notarized, so the
+# release notes explain how to get past Gatekeeper on first launch.
+#
+# Add [skip ci] to a commit message to push without cutting a release.
+
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+# One release at a time, so tags and release notes are cut in push order.
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PROJECT: Meeting Minder.xcodeproj
+  SCHEME: Meeting Minder
+  # Match the Xcode the project is developed with; MACOSX_DEPLOYMENT_TARGET is 26.5.
+  XCODE_APP: /Applications/Xcode_26.6.app
+
+jobs:
+  release:
+    runs-on: macos-26
+    timeout-minutes: 30
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Full history and tags, so the release notes can list commits since the last release.
+          fetch-depth: 0
+
+      - name: Select Xcode
+        run: sudo xcode-select -s "$XCODE_APP"
+
+      - name: Work out version
+        id: version
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+        run: |
+          marketing=$(xcodebuild -project "$PROJECT" -scheme "$SCHEME" -configuration Release \
+            -destination 'generic/platform=macOS' -showBuildSettings \
+            | awk -F' = ' '/^ *MARKETING_VERSION = /{v=$2} END{print v}')
+          if [[ -z "$marketing" ]]; then
+            echo "::error::Could not read MARKETING_VERSION from the project"
+            exit 1
+          fi
+          {
+            echo "marketing=$marketing"
+            echo "build=$BUILD_NUMBER"
+            echo "tag=v$marketing.$BUILD_NUMBER"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Test
+        run: |
+          xcodebuild test -project "$PROJECT" -scheme "$SCHEME" -destination 'platform=macOS' \
+            -only-testing:"Meeting MinderTests" -quiet
+
+      - name: Build
+        env:
+          BUILD_NUMBER: ${{ steps.version.outputs.build }}
+        run: |
+          # CODE_SIGN_IDENTITY=- is ad-hoc ("Sign to Run Locally"), which needs no certificates.
+          # Leave CODE_SIGN_INJECT_BASE_ENTITLEMENTS alone: the sandbox and network entitlements
+          # come from build settings, and turning it off strips them along with get-task-allow.
+          xcodebuild build -project "$PROJECT" -scheme "$SCHEME" -configuration Release \
+            -destination 'generic/platform=macOS' -derivedDataPath build \
+            CODE_SIGN_IDENTITY=- CURRENT_PROJECT_VERSION="$BUILD_NUMBER" -quiet
+
+      - name: Package
+        id: package
+        env:
+          TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          zip="Meeting-Minder-$TAG.zip"
+          ditto -c -k --sequesterRsrc --keepParent "build/Build/Products/Release/Meeting Minder.app" "$zip"
+          echo "zip=$zip" >> "$GITHUB_OUTPUT"
+
+      - name: Write release notes
+        run: |
+          previous=$(git describe --tags --abbrev=0 --match 'v*' HEAD 2>/dev/null || true)
+          {
+            echo "## Changes"
+            echo
+            git log --no-merges --pretty='- %s (%h)' "${previous:+$previous..}HEAD"
+            echo
+            echo "## Installing"
+            echo
+            echo "Requires macOS 26.5 or later. Unzip and move **Meeting Minder.app** to **/Applications**."
+            echo
+            echo "This build is not notarized, so macOS blocks it the first time. Try to open it once, then go to"
+            echo "**System Settings → Privacy & Security** and click **Open Anyway**. Or, from Terminal:"
+            echo
+            echo '```sh'
+            echo 'xattr -dr com.apple.quarantine "/Applications/Meeting Minder.app"'
+            echo '```'
+          } > release-notes.md
+          cat release-notes.md
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.version.outputs.tag }}
+          TITLE: Meeting Minder ${{ steps.version.outputs.marketing }} (build ${{ steps.version.outputs.build }})
+          ZIP: ${{ steps.package.outputs.zip }}
+        run: |
+          gh release create "$TAG" "$ZIP" --target "$GITHUB_SHA" --title "$TITLE" --notes-file release-notes.md
