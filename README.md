@@ -131,6 +131,8 @@ Calendar.
 
 ## Privacy and security notes
 
+The full privacy policy is in [PRIVACY.md](PRIVACY.md).
+
 - The OAuth scope is `calendar.readonly` plus `openid`/`email` (used only to label the menu).
   The app has no code that writes to your calendar.
 - Sign-in uses the loopback redirect flow with PKCE. The local HTTP listener binds to
